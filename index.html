@@ -34,13 +34,13 @@
     const grid = document.getElementById('grid');
     let baseFileName = "Skybox";
 
-    // Orientation vectors with specific 90deg rotations for Top/Bottom
+    // Optimized vectors: 180deg flip + 90deg rotations for Up/Dn + Ft naming
     const faces = [
         { name: 'front',  suffix: 'Ft', dir: [0, 0, 1],  up: [0, -1, 0],  right: [-1, 0, 0] },
         { name: 'back',   suffix: 'Bk', dir: [0, 0, -1], up: [0, -1, 0],  right: [1, 0, 0]  },
-        // Top: Rotated 90deg CCW
+        // Up (Top): Rotated 90deg CCW
         { name: 'up',     suffix: 'Up', dir: [0, 1, 0],  up: [1, 0, 0],   right: [0, 0, 1]  },
-        // Bottom: Rotated 90deg CW
+        // Down (Bottom): Rotated 90deg CW
         { name: 'down',   suffix: 'Dn', dir: [0, -1, 0], up: [-1, 0, 0],  right: [0, 0, 1]  },
         { name: 'right',  suffix: 'Rt', dir: [1, 0, 0],  up: [0, -1, 0],  right: [0, 0, 1]  },
         { name: 'left',   suffix: 'Lf', dir: [-1, 0, 0], up: [0, -1, 0],  right: [0, 0, -1] }
@@ -119,9 +119,11 @@
             const robloxName = `${baseFileName}_${face.suffix}`;
             const div = document.createElement('div');
             div.className = 'face-box';
+            
             const displayCanvas = document.createElement('canvas');
             displayCanvas.width = size; displayCanvas.height = size;
             displayCanvas.getContext('2d').drawImage(canvas, 0, 0);
+            
             div.appendChild(displayCanvas);
             div.innerHTML += `<strong>${robloxName}</strong>`;
 
