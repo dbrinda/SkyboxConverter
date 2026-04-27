@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skybox Gen | Standalone</title>
+    <style>
+        :root { --accent: #00ff88; --bg: #0f0f0f; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: white; display: flex; flex-direction: column; align-items: center; padding: 40px; }
+        .card { background: #1a1a1a; padding: 2rem; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); max-width: 900px; width: 100%; border: 1px solid #333; }
+        .drop-zone { border: 2px dashed #444; padding: 40px; border-radius: 8px; margin: 20px 0; cursor: pointer; transition: 0.2s; }
+        .drop-zone:hover { border-color: var(--accent); background: #222; }
+        #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-top: 30px; }
+        canvas { width: 100%; border-radius: 4px; background: #000; }
+        .face-box { background: #252525; padding: 10px; border-radius: 6px; text-align: center; }
+        .btn { background: var(--accent); color: #000; border: none; padding: 10px 20px; border-radius: 5px; font-weight: bold; cursor: pointer; margin-top: 10px; text-decoration: none; display: inline-block; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h1>Skybox Processor</h1>
+    <p>Drop a panorama (2:1 aspect ratio) to generate Roblox-compatible faces.</p>
+    
+    <div class="drop-zone" id="dropZone">
+        Click or Drag Panorama Here
+        <input type="file" id="fileInput" hidden accept="image/*">
+    </div>
+
+    <div id="grid"></div>
+</div>
+
+<script>
+    const fileInput = document.getElementById('fileInput');
+    const dropZone = document.getElementById('dropZone');
+    const grid = document.getElementById('grid');
+
+    const faces = [
+        { name: 'right',  dir: [1, 0, 0],  up: [0, 1, 0],  right: [0, 0, -1] },
+        { name: 'left',   dir: [-1, 0, 0], up: [0, 1, 0],  right: [0, 0, 1]  },
+        { name: 'top',    dir: [0, 1, 0],  up: [0, 0, 1],  right: [1, 0, 0]  },
+        { name: 'bottom', dir: [0, -1, 0], up: [0, 0, -1], right: [1, 0, 0]  },
+        { name: 'front',  dir: [0, 0, 1],  up: [0, 1, 0],  right: [1, 0, 0]  },
+        { name: 'back',   dir: [0, 0, -1], up: [0, 1, 0],  right: [-1, 0, 0] }
+    ];
+
+    dropZone.onclick = () => fileInput.click();
+    fileInput.onchange = handleFile;
+
+    function handleFile(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => process(img);
+            img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function process(img) {
+        grid.innerHTML = '';
+        const size = Math.min(img.width / 4, 2048); // High quality limit
+        
+        // Get source data once
+        const srcCanvas = document.createElement('canvas');
+        srcCanvas.width = img.width; srcCanvas.height = img.height;
+        const srcCtx = srcCanvas.getContext('2d');
+        srcCtx.drawImage(img, 0, 0);
+        const srcData = srcCtx.getImageData(0, 0, img.width, img.height).data;
+
+        faces.forEach(face => {
+            const canvas = document.createElement('canvas');
+            canvas.width = canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            const dstData = ctx.createImageData(size, size);
+
+            for (let y = 0; y < size; y++) {
+                for (let x = 0; x < size; x++) {
+                    const nx = (2 * x / size) - 1;
+                    const ny = (2 * y / size) - 1;
+
+                    const vx = face.dir[0] + nx * face.right[0] + ny * face.up[0];
+                    const vy = face.dir[1] + nx * face.right[1] + ny * face.up[1];
+                    const vz = face.dir[2] + nx * face.right[2] + ny * face.up[2];
+
+                    const r = Math.sqrt(vx*vx + vy*vy + vz*vz);
+                    const phi = Math.atan2(vz, vx);
+                    const theta = Math.acos(vy / r);
+
+                    const u = (phi + Math.PI) / (2 * Math.PI) * img.width;
+                    const v = (theta / Math.PI) * img.height;
+
+                    const outIndex = (y * size + x) * 4;
+                    sampleBilinear(srcData, u, v, img.width, img.height, dstData.data, outIndex);
+                }
+            }
+            ctx.putImageData(dstData, 0, 0);
+            
+            const div = document.createElement('div');
+            div.className = 'face-box';
+            div.innerHTML = `<strong>${face.name}</strong>`;
+            div.appendChild(canvas);
+            
+            const dl = document.createElement('a');
+            dl.className = 'btn';
+            dl.innerText = 'Download';
+            dl.download = `${face.name}.png`;
+            dl.href = canvas.toDataURL();
+            div.appendChild(dl);
+            
+            grid.appendChild(div);
+        });
+    }
+
+    function sampleBilinear(data, u, v, w, h, out, outIndex) {
+        const u1 = Math.floor(u); const v1 = Math.floor(v);
+        const u2 = (u1 + 1) % w;  const v2 = Math.min(v1 + 1, h - 1);
+        const fU = u - u1;        const fV = v - v1;
+
+        for (let i = 0; i < 4; i++) {
+            const p1 = data[(v1 * w + u1) * 4 + i];
+            const p2 = data[(v1 * w + u2) * 4 + i];
+            const p3 = data[(v2 * w + u1) * 4 + i];
+            const p4 = data[(v2 * w + u2) * 4 + i];
+            out[outIndex + i] = p1 * (1-fU) * (1-fV) + p2 * fU * (1-fV) + p3 * (1-fU) * fV + p4 * fU * fV;
+        }
+    }
+</script>
+</body>
+</html>
