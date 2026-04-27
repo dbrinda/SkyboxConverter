@@ -8,12 +8,13 @@
         :root { --accent: #00ff88; --bg: #0f0f0f; }
         body { font-family: sans-serif; background: var(--bg); color: white; display: flex; flex-direction: column; align-items: center; padding: 40px; }
         .card { background: #1a1a1a; padding: 2rem; border-radius: 12px; max-width: 900px; width: 100%; border: 1px solid #333; text-align: center; }
-        .drop-zone { border: 2px dashed #444; padding: 40px; border-radius: 8px; margin: 20px 0; cursor: pointer; }
-        .drop-zone:hover { border-color: var(--accent); }
+        .drop-zone { border: 2px dashed #444; padding: 40px; border-radius: 8px; margin: 20px 0; cursor: pointer; transition: 0.2s; }
+        .drop-zone:hover, .drop-zone.dragover { border-color: var(--accent); background: #222; }
         #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-top: 30px; }
-        .face-box { background: #252525; padding: 10px; border-radius: 6px; }
-        canvas { width: 100%; border-radius: 4px; display: block; margin-bottom: 10px; }
-        .btn { background: var(--accent); color: #000; border: none; padding: 8px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; text-decoration: none; display: inline-block; }
+        .face-box { background: #252525; padding: 15px; border-radius: 6px; display: flex; flex-direction: column; align-items: center; }
+        canvas { width: 100%; border-radius: 4px; display: block; margin-bottom: 10px; background: #000; }
+        .btn { background: var(--accent); color: #000; border: none; padding: 8px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; text-decoration: none; display: inline-block; margin-top: 10px; }
+        strong { font-size: 0.85rem; word-break: break-all; color: #ccc; }
     </style>
 </head>
 <body>
@@ -33,7 +34,7 @@
     const grid = document.getElementById('grid');
     let baseFileName = "Skybox";
 
-    // Corrected orientation vectors for Roblox coordinate space
+    // Optimized vectors to match Roblox orientation (prevents upside-down top/bottom)
     const faces = [
         { name: 'front',  suffix: 'Fr', dir: [0, 0, 1],  up: [0, 1, 0],  right: [1, 0, 0]  },
         { name: 'back',   suffix: 'Bk', dir: [0, 0, -1], up: [0, 1, 0],  right: [-1, 0, 0] },
@@ -43,13 +44,43 @@
         { name: 'left',   suffix: 'Lf', dir: [-1, 0, 0], up: [0, 1, 0],  right: [0, 0, 1]  }
     ];
 
+    // --- Drag and Drop Handlers ---
+    
+    // Prevent browser from opening the file
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, e => {
+            e.preventDefault();
+            e.stopPropagation();
+        }, false);
+    });
+
+    // Visual feedback
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
+    });
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
+    });
+
+    // Handle dropped files
+    dropZone.addEventListener('drop', e => {
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            fileInput.files = files; // Sync with hidden input
+            handleFile({ target: { files } });
+        }
+    }, false);
+
     dropZone.onclick = () => fileInput.click();
     fileInput.onchange = handleFile;
 
     function handleFile(e) {
         const file = e.target.files[0];
         if (!file) return;
+
+        // Strip extension for the requested naming format
         baseFileName = file.name.replace(/\.[^/.]+$/, "");
+
         const reader = new FileReader();
         reader.onload = (event) => {
             const img = new Image();
@@ -62,6 +93,7 @@
     function process(img) {
         grid.innerHTML = '';
         const size = Math.min(img.width / 4, 2048);
+        
         const srcCanvas = document.createElement('canvas');
         srcCanvas.width = img.width; srcCanvas.height = img.height;
         const srcCtx = srcCanvas.getContext('2d');
@@ -96,20 +128,25 @@
             }
             ctx.putImageData(dstData, 0, 0);
             
+            // Format: FileName_SkyboxSuffix
             const robloxName = `${baseFileName}_Skybox${face.suffix}`;
+            
             const div = document.createElement('div');
             div.className = 'face-box';
-            div.innerHTML = `<canvas></canvas><div><strong>${robloxName}</strong></div>`;
             
-            const displayCanvas = div.querySelector('canvas');
+            const displayCanvas = document.createElement('canvas');
             displayCanvas.width = size; displayCanvas.height = size;
             displayCanvas.getContext('2d').drawImage(canvas, 0, 0);
+            
+            div.appendChild(displayCanvas);
+            div.innerHTML += `<strong>${robloxName}</strong>`;
 
             const dl = document.createElement('a');
             dl.className = 'btn';
             dl.innerText = 'Download';
             dl.download = `${robloxName}.png`;
             dl.href = canvas.toDataURL();
+            
             div.appendChild(dl);
             grid.appendChild(div);
         });
@@ -119,6 +156,7 @@
         const u1 = Math.floor(u); const v1 = Math.floor(v);
         const u2 = (u1 + 1) % w;  const v2 = Math.min(v1 + 1, h - 1);
         const fU = u - u1;        const fV = v - v1;
+
         for (let i = 0; i < 4; i++) {
             const p1 = data[(v1 * w + u1) * 4 + i];
             const p2 = data[(v1 * w + u2) * 4 + i];
