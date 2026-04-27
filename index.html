@@ -3,30 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Skybox Gen | Roblox Edition</title>
+    <title>Roblox Skybox Converter</title>
     <style>
         :root { --accent: #00ff88; --bg: #0f0f0f; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: white; display: flex; flex-direction: column; align-items: center; padding: 40px; }
-        .card { background: #1a1a1a; padding: 2rem; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); max-width: 900px; width: 100%; border: 1px solid #333; }
-        .drop-zone { border: 2px dashed #444; padding: 40px; border-radius: 8px; margin: 20px 0; cursor: pointer; transition: 0.2s; }
-        .drop-zone:hover { border-color: var(--accent); background: #222; }
+        body { font-family: sans-serif; background: var(--bg); color: white; display: flex; flex-direction: column; align-items: center; padding: 40px; }
+        .card { background: #1a1a1a; padding: 2rem; border-radius: 12px; max-width: 900px; width: 100%; border: 1px solid #333; text-align: center; }
+        .drop-zone { border: 2px dashed #444; padding: 40px; border-radius: 8px; margin: 20px 0; cursor: pointer; }
+        .drop-zone:hover { border-color: var(--accent); }
         #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-top: 30px; }
-        canvas { width: 100%; border-radius: 4px; background: #000; }
-        .face-box { background: #252525; padding: 10px; border-radius: 6px; text-align: center; }
-        .btn { background: var(--accent); color: #000; border: none; padding: 10px 20px; border-radius: 5px; font-weight: bold; cursor: pointer; margin-top: 10px; text-decoration: none; display: inline-block; }
+        .face-box { background: #252525; padding: 10px; border-radius: 6px; }
+        canvas { width: 100%; border-radius: 4px; display: block; margin-bottom: 10px; }
+        .btn { background: var(--accent); color: #000; border: none; padding: 8px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; text-decoration: none; display: inline-block; }
     </style>
 </head>
 <body>
 
 <div class="card">
     <h1>Roblox Skybox Processor</h1>
-    <p>Drop a panorama (2:1 aspect ratio) to generate properly named faces.</p>
-    
     <div class="drop-zone" id="dropZone">
         Click or Drag Panorama Here
         <input type="file" id="fileInput" hidden accept="image/*">
     </div>
-
     <div id="grid"></div>
 </div>
 
@@ -34,16 +31,16 @@
     const fileInput = document.getElementById('fileInput');
     const dropZone = document.getElementById('dropZone');
     const grid = document.getElementById('grid');
-    let baseFileName = "Skybox"; 
+    let baseFileName = "Skybox";
 
-    // Roblox naming convention mapping
+    // Corrected orientation vectors for Roblox coordinate space
     const faces = [
-        { name: 'right',  suffix: 'Rt', dir: [1, 0, 0],  up: [0, 1, 0],  right: [0, 0, -1] },
-        { name: 'left',   suffix: 'Lf', dir: [-1, 0, 0], up: [0, 1, 0],  right: [0, 0, 1]  },
-        { name: 'top',    suffix: 'Up', dir: [0, 1, 0],  up: [0, 0, 1],  right: [1, 0, 0]  },
-        { name: 'bottom', suffix: 'Dn', dir: [0, -1, 0], up: [0, 0, -1], right: [1, 0, 0]  },
         { name: 'front',  suffix: 'Fr', dir: [0, 0, 1],  up: [0, 1, 0],  right: [1, 0, 0]  },
-        { name: 'back',   suffix: 'Bk', dir: [0, 0, -1], up: [0, 1, 0],  right: [-1, 0, 0] }
+        { name: 'back',   suffix: 'Bk', dir: [0, 0, -1], up: [0, 1, 0],  right: [-1, 0, 0] },
+        { name: 'up',     suffix: 'Up', dir: [0, 1, 0],  up: [0, 0, -1], right: [1, 0, 0]  },
+        { name: 'down',   suffix: 'Dn', dir: [0, -1, 0], up: [0, 0, 1],  right: [1, 0, 0]  },
+        { name: 'right',  suffix: 'Rt', dir: [1, 0, 0],  up: [0, 1, 0],  right: [0, 0, -1] },
+        { name: 'left',   suffix: 'Lf', dir: [-1, 0, 0], up: [0, 1, 0],  right: [0, 0, 1]  }
     ];
 
     dropZone.onclick = () => fileInput.click();
@@ -52,10 +49,7 @@
     function handleFile(e) {
         const file = e.target.files[0];
         if (!file) return;
-
-        // Extract filename without extension for the prefix
         baseFileName = file.name.replace(/\.[^/.]+$/, "");
-
         const reader = new FileReader();
         reader.onload = (event) => {
             const img = new Image();
@@ -67,11 +61,9 @@
 
     function process(img) {
         grid.innerHTML = '';
-        const size = Math.min(img.width / 4, 2048); 
-        
+        const size = Math.min(img.width / 4, 2048);
         const srcCanvas = document.createElement('canvas');
-        srcCanvas.width = img.width; 
-        srcCanvas.height = img.height;
+        srcCanvas.width = img.width; srcCanvas.height = img.height;
         const srcCtx = srcCanvas.getContext('2d');
         srcCtx.drawImage(img, 0, 0);
         const srcData = srcCtx.getImageData(0, 0, img.width, img.height).data;
@@ -104,21 +96,21 @@
             }
             ctx.putImageData(dstData, 0, 0);
             
-            // Generate the requested name format: [FileName]_Skybox[RobloxSuffix]
             const robloxName = `${baseFileName}_Skybox${face.suffix}`;
-
             const div = document.createElement('div');
             div.className = 'face-box';
-            div.innerHTML = `<strong>${robloxName}</strong>`;
-            div.appendChild(canvas);
+            div.innerHTML = `<canvas></canvas><div><strong>${robloxName}</strong></div>`;
             
+            const displayCanvas = div.querySelector('canvas');
+            displayCanvas.width = size; displayCanvas.height = size;
+            displayCanvas.getContext('2d').drawImage(canvas, 0, 0);
+
             const dl = document.createElement('a');
             dl.className = 'btn';
             dl.innerText = 'Download';
             dl.download = `${robloxName}.png`;
             dl.href = canvas.toDataURL();
             div.appendChild(dl);
-            
             grid.appendChild(div);
         });
     }
@@ -127,7 +119,6 @@
         const u1 = Math.floor(u); const v1 = Math.floor(v);
         const u2 = (u1 + 1) % w;  const v2 = Math.min(v1 + 1, h - 1);
         const fU = u - u1;        const fV = v - v1;
-
         for (let i = 0; i < 4; i++) {
             const p1 = data[(v1 * w + u1) * 4 + i];
             const p2 = data[(v1 * w + u2) * 4 + i];
