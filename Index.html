@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Skybox Gen | Standalone</title>
+    <title>Skybox Gen | Roblox Edition</title>
     <style>
         :root { --accent: #00ff88; --bg: #0f0f0f; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: white; display: flex; flex-direction: column; align-items: center; padding: 40px; }
@@ -19,8 +19,8 @@
 <body>
 
 <div class="card">
-    <h1>Skybox Processor</h1>
-    <p>Drop a panorama (2:1 aspect ratio) to generate Roblox-compatible faces.</p>
+    <h1>Roblox Skybox Processor</h1>
+    <p>Drop a panorama (2:1 aspect ratio) to generate properly named faces.</p>
     
     <div class="drop-zone" id="dropZone">
         Click or Drag Panorama Here
@@ -34,14 +34,16 @@
     const fileInput = document.getElementById('fileInput');
     const dropZone = document.getElementById('dropZone');
     const grid = document.getElementById('grid');
+    let baseFileName = "Skybox"; 
 
+    // Roblox naming convention mapping
     const faces = [
-        { name: 'right',  dir: [1, 0, 0],  up: [0, 1, 0],  right: [0, 0, -1] },
-        { name: 'left',   dir: [-1, 0, 0], up: [0, 1, 0],  right: [0, 0, 1]  },
-        { name: 'top',    dir: [0, 1, 0],  up: [0, 0, 1],  right: [1, 0, 0]  },
-        { name: 'bottom', dir: [0, -1, 0], up: [0, 0, -1], right: [1, 0, 0]  },
-        { name: 'front',  dir: [0, 0, 1],  up: [0, 1, 0],  right: [1, 0, 0]  },
-        { name: 'back',   dir: [0, 0, -1], up: [0, 1, 0],  right: [-1, 0, 0] }
+        { name: 'right',  suffix: 'Rt', dir: [1, 0, 0],  up: [0, 1, 0],  right: [0, 0, -1] },
+        { name: 'left',   suffix: 'Lf', dir: [-1, 0, 0], up: [0, 1, 0],  right: [0, 0, 1]  },
+        { name: 'top',    suffix: 'Up', dir: [0, 1, 0],  up: [0, 0, 1],  right: [1, 0, 0]  },
+        { name: 'bottom', suffix: 'Dn', dir: [0, -1, 0], up: [0, 0, -1], right: [1, 0, 0]  },
+        { name: 'front',  suffix: 'Fr', dir: [0, 0, 1],  up: [0, 1, 0],  right: [1, 0, 0]  },
+        { name: 'back',   suffix: 'Bk', dir: [0, 0, -1], up: [0, 1, 0],  right: [-1, 0, 0] }
     ];
 
     dropZone.onclick = () => fileInput.click();
@@ -50,6 +52,10 @@
     function handleFile(e) {
         const file = e.target.files[0];
         if (!file) return;
+
+        // Extract filename without extension for the prefix
+        baseFileName = file.name.replace(/\.[^/.]+$/, "");
+
         const reader = new FileReader();
         reader.onload = (event) => {
             const img = new Image();
@@ -61,11 +67,11 @@
 
     function process(img) {
         grid.innerHTML = '';
-        const size = Math.min(img.width / 4, 2048); // High quality limit
+        const size = Math.min(img.width / 4, 2048); 
         
-        // Get source data once
         const srcCanvas = document.createElement('canvas');
-        srcCanvas.width = img.width; srcCanvas.height = img.height;
+        srcCanvas.width = img.width; 
+        srcCanvas.height = img.height;
         const srcCtx = srcCanvas.getContext('2d');
         srcCtx.drawImage(img, 0, 0);
         const srcData = srcCtx.getImageData(0, 0, img.width, img.height).data;
@@ -98,15 +104,18 @@
             }
             ctx.putImageData(dstData, 0, 0);
             
+            // Generate the requested name format: [FileName]_Skybox[RobloxSuffix]
+            const robloxName = `${baseFileName}_Skybox${face.suffix}`;
+
             const div = document.createElement('div');
             div.className = 'face-box';
-            div.innerHTML = `<strong>${face.name}</strong>`;
+            div.innerHTML = `<strong>${robloxName}</strong>`;
             div.appendChild(canvas);
             
             const dl = document.createElement('a');
             dl.className = 'btn';
             dl.innerText = 'Download';
-            dl.download = `${face.name}.png`;
+            dl.download = `${robloxName}.png`;
             dl.href = canvas.toDataURL();
             div.appendChild(dl);
             
