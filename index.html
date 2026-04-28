@@ -136,6 +136,36 @@
             div.appendChild(dl);
             grid.appendChild(div);
         });
+
+        // --- Thumbnail Feature ---
+        const tnWidth = 400;
+        const tnHeight = 200;
+        const tnCanvas = document.createElement('canvas');
+        tnCanvas.width = tnWidth;
+        tnCanvas.height = tnHeight;
+        const tnCtx = tnCanvas.getContext('2d');
+        tnCtx.drawImage(img, 0, 0, tnWidth, tnHeight);
+
+        const tnName = `${baseFileName}_tn`;
+        const tnDiv = document.createElement('div');
+        tnDiv.className = 'face-box';
+        
+        const tnDisplayCanvas = document.createElement('canvas');
+        tnDisplayCanvas.width = tnWidth; 
+        tnDisplayCanvas.height = tnHeight;
+        tnDisplayCanvas.getContext('2d').drawImage(tnCanvas, 0, 0);
+        
+        tnDiv.appendChild(tnDisplayCanvas);
+        tnDiv.innerHTML += `<strong>${tnName}</strong>`;
+
+        const tnDl = document.createElement('a');
+        tnDl.className = 'btn';
+        tnDl.innerText = 'Download JPG';
+        tnDl.download = `${tnName}.jpg`;
+        tnDl.href = tnCanvas.toDataURL('image/jpeg', 0.9);
+        
+        tnDiv.appendChild(tnDl);
+        grid.appendChild(tnDiv);
     }
 
     function sampleBilinear(data, u, v, w, h, out, outIndex) {
