@@ -64,40 +64,32 @@
             }
         }
 
-        function createFaceBox(canvas, name) {
-            const div = document.createElement('div');
-            div.className = 'face-box';
-
-            const displayCanvas = document.createElement('canvas');
-            displayCanvas.width = canvas.width;
-            displayCanvas.height = canvas.height;
-            displayCanvas.getContext('2d').drawImage(canvas, 0, 0);
-
-            div.appendChild(displayCanvas);
-            div.innerHTML += `<p><strong>${name}</strong></p>`;
-
-            const dl = document.createElement('a');
-            dl.className = 'btn';
-            dl.innerText = 'Download JPG';
-            dl.download = `${name}.jpg`;
-            dl.href = canvas.toDataURL('image/jpeg', 0.9);
-
-            div.appendChild(dl);
-            grid.appendChild(div);
-        }
-
         function process(img) {
             grid.innerHTML = '';
 
-            // 1. Generate Thumbnail (400x200 Equirectangular)
+            // --- 1. Generate Thumbnail (400x200 Equirectangular) ---
             const tnCanvas = document.createElement('canvas');
             tnCanvas.width = 400;
             tnCanvas.height = 200;
             const tnCtx = tnCanvas.getContext('2d');
             tnCtx.drawImage(img, 0, 0, 400, 200);
-            createFaceBox(tnCanvas, `${baseFileName}_tn`);
+            
+            const tnDiv = document.createElement('div');
+            tnDiv.className = 'face-box';
+            tnDiv.appendChild(tnCanvas);
+            const tnLabel = document.createElement('p');
+            tnLabel.innerHTML = `<strong>${baseFileName}_tn</strong>`;
+            tnDiv.appendChild(tnLabel);
+            
+            const tnDl = document.createElement('a');
+            tnDl.className = 'btn';
+            tnDl.innerText = 'Download JPG';
+            tnDl.download = `${baseFileName}_tn.jpg`;
+            tnDl.href = tnCanvas.toDataURL('image/jpeg', 0.9);
+            tnDiv.appendChild(tnDl);
+            grid.appendChild(tnDiv);
 
-            // 2. Setup Cube Face Parameters
+            // --- 2. Process Cube Faces ---
             const size = Math.min(img.width / 4, 2048);
             const srcCanvas = document.createElement('canvas');
             srcCanvas.width = img.width;
@@ -106,7 +98,6 @@
             srcCtx.drawImage(img, 0, 0);
             const srcData = srcCtx.getImageData(0, 0, img.width, img.height).data;
 
-            // 3. Process each Face
             faces.forEach(face => {
                 const canvas = document.createElement('canvas');
                 canvas.width = canvas.height = size;
@@ -133,7 +124,24 @@
                     }
                 }
                 ctx.putImageData(dstData, 0, 0);
-                createFaceBox(canvas, `${baseFileName}_${face.suffix}`);
+
+                const div = document.createElement('div');
+                div.className = 'face-box';
+                div.appendChild(canvas);
+
+                const label = document.createElement('p');
+                const faceName = `${baseFileName}_${face.suffix}`;
+                label.innerHTML = `<strong>${faceName}</strong>`;
+                div.appendChild(label);
+
+                const dl = document.createElement('a');
+                dl.className = 'btn';
+                dl.innerText = 'Download JPG';
+                dl.download = `${faceName}.jpg`;
+                dl.href = canvas.toDataURL('image/jpeg', 0.9);
+                div.appendChild(dl);
+
+                grid.appendChild(div);
             });
         }
     </script>
