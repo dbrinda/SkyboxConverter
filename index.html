@@ -11,18 +11,35 @@
         canvas { max-width: 256px; height: auto; margin-bottom: 10px; background: #000; }
         .btn { display: inline-block; padding: 8px 16px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; font-size: 14px; cursor: pointer; }
         .btn:hover { background: #0056b3; }
-        input[type="file"] { margin-bottom: 20px; }
+        
+        /* Drag and Drop Box Styles */
+        #drop-zone {
+            border: 2px dashed #555;
+            padding: 40px;
+            margin: 20px auto;
+            width: 300px;
+            cursor: pointer;
+            border-radius: 10px;
+            transition: background 0.3s;
+        }
+        #drop-zone.hover { background: #333; border-color: #007bff; }
+        input[type="file"] { display: none; }
     </style>
 </head>
 <body>
 
     <h1>Skybox to Cube Faces</h1>
-    <p>Upload an equirectangular image to generate 6 cube faces and a 400x200 thumbnail.</p>
-    <input type="file" id="upload" accept="image/*">
+    
+    <div id="drop-zone">
+        Click or Drop Equirectangular Image Here
+        <input type="file" id="upload" accept="image/*">
+    </div>
+
     <div id="grid"></div>
 
     <script>
         const upload = document.getElementById('upload');
+        const dropZone = document.getElementById('drop-zone');
         const grid = document.getElementById('grid');
         let baseFileName = "skybox";
 
@@ -35,10 +52,20 @@
             { suffix: 'up', dir: [0, 1, 0], right: [1, 0, 0], up: [0, 0, -1] }
         ];
 
-        upload.addEventListener('change', (e) => {
-            const file = e.target.files[0];
+        // Original Drag and Drop Logic
+        dropZone.onclick = () => upload.click();
+        dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('hover'); };
+        dropZone.ondragleave = () => dropZone.classList.remove('hover');
+        dropZone.ondrop = (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('hover');
+            handleFile(e.dataTransfer.files[0]);
+        };
+
+        upload.addEventListener('change', (e) => handleFile(e.target.files[0]));
+
+        function handleFile(file) {
             if (!file) return;
-            
             baseFileName = file.name.replace(/\.[^/.]+$/, "");
             const reader = new FileReader();
             reader.onload = (event) => {
@@ -47,7 +74,7 @@
                 img.src = event.target.result;
             };
             reader.readAsDataURL(file);
-        });
+        }
 
         function sampleBilinear(data, u, v, width, height, outData, outIndex) {
             const x = Math.max(0, Math.min(width - 1, u));
@@ -68,7 +95,7 @@
         function process(img) {
             grid.innerHTML = '';
 
-            // --- 1. ORIGINAL CUBE FACE LOGIC (UNTUCKED AND UNCHANGED) ---
+            // --- Original Cube Face Logic ---
             const size = Math.min(img.width / 4, 2048);
             const srcCanvas = document.createElement('canvas');
             srcCanvas.width = img.width;
@@ -123,12 +150,11 @@
                 grid.appendChild(div);
             });
 
-            // --- 2. THUMBNAIL LOGIC (ADDED AT END) ---
+            // --- Thumbnail Addition ---
             const tnCanvas = document.createElement('canvas');
             tnCanvas.width = 400;
             tnCanvas.height = 200;
-            const tnCtx = tnCanvas.getContext('2d');
-            tnCtx.drawImage(img, 0, 0, 400, 200);
+            tnCanvas.getContext('2d').drawImage(img, 0, 0, 400, 200);
 
             const tnDiv = document.createElement('div');
             tnDiv.className = 'face-box';
