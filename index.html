@@ -52,7 +52,7 @@
             { suffix: 'up', dir: [0, 1, 0], right: [1, 0, 0], up: [0, 0, -1] }
         ];
 
-        // Original Drag and Drop Logic
+        // Drag and Drop Logic
         dropZone.onclick = () => upload.click();
         dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('hover'); };
         dropZone.ondragleave = () => dropZone.classList.remove('hover');
@@ -95,7 +95,7 @@
         function process(img) {
             grid.innerHTML = '';
 
-            // --- Original Cube Face Logic ---
+            // --- Original Logic for Cube Faces ---
             const size = Math.min(img.width / 4, 2048);
             const srcCanvas = document.createElement('canvas');
             srcCanvas.width = img.width;
@@ -150,7 +150,7 @@
                 grid.appendChild(div);
             });
 
-            // --- Thumbnail Addition ---
+            // --- Addition: Generate 400x200 Thumbnail ---
             const tnCanvas = document.createElement('canvas');
             tnCanvas.width = 400;
             tnCanvas.height = 200;
