@@ -12,6 +12,7 @@
         .btn { display: inline-block; padding: 8px 16px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; font-size: 14px; cursor: pointer; }
         .btn:hover { background: #0056b3; }
         
+        /* Original Drag and Drop Styles */
         #drop-zone { border: 2px dashed #555; padding: 40px; margin: 20px auto; width: 300px; cursor: pointer; border-radius: 10px; transition: background 0.3s; }
         #drop-zone.hover { background: #333; border-color: #007bff; }
         input[type="file"] { display: none; }
@@ -19,7 +20,7 @@
 </head>
 <body>
 
-    <h1>Skybox to Cube Faces</h1>
+    <h1>Roblox Skybox Converter</h1>
     
     <div id="drop-zone">
         Click or Drop Equirectangular Image Here
@@ -35,14 +36,15 @@
         let baseFileName = "skybox";
 
         const faces = [
-            { suffix: 'bk', dir: [-1, 0, 0], right: [0, 0, 1], up: [0, 1, 0], rot: 180 },
-            { suffix: 'dn', dir: [0, -1, 0], right: [1, 0, 0], up: [0, 0, 1], rot: -90 }, // 90 CCW
-            { suffix: 'ft', dir: [1, 0, 0], right: [0, 0, -1], up: [0, 1, 0], rot: 180 },
-            { suffix: 'lf', dir: [0, 0, -1], right: [-1, 0, 0], up: [0, 1, 0], rot: 180 },
-            { suffix: 'rt', dir: [0, 0, 1], right: [1, 0, 0], up: [0, 1, 0], rot: 180 },
-            { suffix: 'up', dir: [0, 1, 0], right: [1, 0, 0], up: [0, 0, -1], rot: 90 }    // 90 CW
+            { suffix: 'bk', dir: [-1, 0, 0], right: [0, 0, 1], up: [0, 1, 0] },
+            { suffix: 'dn', dir: [0, -1, 0], right: [1, 0, 0], up: [0, 0, 1] },
+            { suffix: 'ft', dir: [1, 0, 0], right: [0, 0, -1], up: [0, 1, 0] },
+            { suffix: 'lf', dir: [0, 0, -1], right: [-1, 0, 0], up: [0, 1, 0] },
+            { suffix: 'rt', dir: [0, 0, 1], right: [1, 0, 0], up: [0, 1, 0] },
+            { suffix: 'up', dir: [0, 1, 0], right: [1, 0, 0], up: [0, 0, -1] }
         ];
 
+        // Original Drag and Drop Event Listeners
         dropZone.onclick = () => upload.click();
         dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('hover'); };
         dropZone.ondragleave = () => dropZone.classList.remove('hover');
@@ -101,18 +103,22 @@
 
                 for (let y = 0; y < size; y++) {
                     for (let x = 0; x < size; x++) {
+                        // Normalized coordinates
                         let nx = (2 * x / size) - 1;
                         let ny = (2 * y / size) - 1;
 
-                        // Apply Requested Rotations
-                        if (face.rot === 180) {
+                        // Apply Specific Rotations via Coordinate Mapping
+                        if (['bk', 'ft', 'rt', 'lf'].includes(face.suffix)) {
+                            // Rotate 180: (x,y) -> (-x,-y)
                             nx = -nx;
                             ny = -ny;
-                        } else if (face.rot === 90) { // CW
+                        } else if (face.suffix === 'up') {
+                            // Result 90 CW: Sample CCW -> (x,y) -> (-y,x)
                             let temp = nx;
                             nx = -ny;
                             ny = temp;
-                        } else if (face.rot === -90) { // CCW
+                        } else if (face.suffix === 'dn') {
+                            // Result 90 CCW: Sample CW -> (x,y) -> (y,-x)
                             let temp = nx;
                             nx = ny;
                             ny = -temp;
@@ -135,6 +141,7 @@
                 }
                 ctx.putImageData(dstData, 0, 0);
 
+                // Build UI exactly like original to maintain stability
                 const div = document.createElement('div');
                 div.className = 'face-box';
                 div.appendChild(canvas);
@@ -154,7 +161,7 @@
                 grid.appendChild(div);
             });
 
-            // Thumbnail (Always 400x200 Equirectangular)
+            // Final Step: The 400x200 Thumbnail
             const tnCanvas = document.createElement('canvas');
             tnCanvas.width = 400;
             tnCanvas.height = 200;
