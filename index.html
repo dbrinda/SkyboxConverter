@@ -67,8 +67,7 @@
         function process(img) {
             grid.innerHTML = '';
 
-            // --- 1. Generate Thumbnail (400x200 Equirectangular) ---
-            // This is added separately to keep the main face loop original
+            // 1. Generate Thumbnail (400x200 Equirectangular)
             const tnCanvas = document.createElement('canvas');
             tnCanvas.width = 400;
             tnCanvas.height = 200;
@@ -78,69 +77,11 @@
             const tnDiv = document.createElement('div');
             tnDiv.className = 'face-box';
             tnDiv.appendChild(tnCanvas);
-            tnDiv.innerHTML += `<p><strong>${baseFileName}_tn</strong></p>`;
+            
+            const tnLabel = document.createElement('strong');
+            tnLabel.textContent = `${baseFileName}_tn`;
+            tnDiv.appendChild(tnLabel);
             
             const tnDl = document.createElement('a');
             tnDl.className = 'btn';
-            tnDl.innerText = 'Download JPG';
-            tnDl.download = `${baseFileName}_tn.jpg`;
-            tnDl.href = tnCanvas.toDataURL('image/jpeg', 0.9);
-            tnDiv.appendChild(tnDl);
-            grid.appendChild(tnDiv);
-
-            // --- 2. Original Cube Face Logic (Unchanged) ---
-            const size = Math.min(img.width / 4, 2048);
-            const srcCanvas = document.createElement('canvas');
-            srcCanvas.width = img.width;
-            srcCanvas.height = img.height;
-            const srcCtx = srcCanvas.getContext('2d');
-            srcCtx.drawImage(img, 0, 0);
-            const srcData = srcCtx.getImageData(0, 0, img.width, img.height).data;
-
-            faces.forEach(face => {
-                const canvas = document.createElement('canvas');
-                canvas.width = canvas.height = size;
-                const ctx = canvas.getContext('2d');
-                const dstData = ctx.createImageData(size, size);
-
-                for (let y = 0; y < size; y++) {
-                    for (let x = 0; x < size; x++) {
-                        const nx = (2 * x / size) - 1;
-                        const ny = (2 * y / size) - 1;
-                        const vx = face.dir[0] + nx * face.right[0] + ny * face.up[0];
-                        const vy = face.dir[1] + nx * face.right[1] + ny * face.up[1];
-                        const vz = face.dir[2] + nx * face.right[2] + ny * face.up[2];
-
-                        const r = Math.sqrt(vx * vx + vy * vy + vz * vz);
-                        const phi = Math.atan2(vz, vx);
-                        const theta = Math.acos(vy / r);
-
-                        const u = (phi + Math.PI) / (2 * Math.PI) * img.width;
-                        const v = (theta / Math.PI) * img.height;
-
-                        const outIndex = (y * size + x) * 4;
-                        sampleBilinear(srcData, u, v, img.width, img.height, dstData.data, outIndex);
-                    }
-                }
-                ctx.putImageData(dstData, 0, 0);
-
-                const div = document.createElement('div');
-                div.className = 'face-box';
-                div.appendChild(canvas);
-                
-                const faceName = `${baseFileName}_${face.suffix}`;
-                div.innerHTML += `<p><strong>${faceName}</strong></p>`;
-
-                const dl = document.createElement('a');
-                dl.className = 'btn';
-                dl.innerText = 'Download JPG';
-                dl.download = `${faceName}.jpg`;
-                dl.href = canvas.toDataURL('image/jpeg', 0.9);
-                div.appendChild(dl);
-
-                grid.appendChild(div);
-            });
-        }
-    </script>
-</body>
-</html>
+            tnDl.innerText
