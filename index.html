@@ -5,186 +5,151 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Roblox Skybox Converter</title>
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 20px; background: #1a1a1a; color: white; }
-        #grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; margin-top: 20px; }
-        .face-box { background: #333; padding: 10px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; }
-        canvas { max-width: 256px; height: auto; margin-bottom: 10px; background: #000; }
-        .btn { display: inline-block; padding: 8px 16px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; font-size: 14px; cursor: pointer; }
-        .btn:hover { background: #0056b3; }
-        
-        /* Original Drag and Drop Styles */
-        #drop-zone { border: 2px dashed #555; padding: 40px; margin: 20px auto; width: 300px; cursor: pointer; border-radius: 10px; transition: background 0.3s; }
-        #drop-zone.hover { background: #333; border-color: #007bff; }
-        input[type="file"] { display: none; }
+        :root { --accent: #00ff88; --bg: #0f0f0f; }
+        body { font-family: sans-serif; background: var(--bg); color: white; display: flex; flex-direction: column; align-items: center; padding: 40px; }
+        .card { background: #1a1a1a; padding: 2rem; border-radius: 12px; max-width: 900px; width: 100%; border: 1px solid #333; text-align: center; }
+        .drop-zone { border: 2px dashed #444; padding: 40px; border-radius: 8px; margin: 20px 0; cursor: pointer; transition: 0.2s; }
+        .drop-zone:hover, .drop-zone.dragover { border-color: var(--accent); background: #222; }
+        #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-top: 30px; }
+        .face-box { background: #252525; padding: 15px; border-radius: 6px; display: flex; flex-direction: column; align-items: center; }
+        canvas { width: 100%; border-radius: 4px; display: block; margin-bottom: 10px; background: #000; }
+        .btn { background: var(--accent); color: #000; border: none; padding: 8px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; text-decoration: none; display: inline-block; margin-top: 10px; }
+        strong { font-size: 0.85rem; word-break: break-all; color: #ccc; }
     </style>
 </head>
 <body>
 
+<div class="card">
     <h1>Roblox Skybox Converter</h1>
-    
-    <div id="drop-zone">
-        Click or Drop Equirectangular Image Here
-        <input type="file" id="upload" accept="image/*">
+    <div class="drop-zone" id="dropZone">
+        Click or Drag Panorama Here
+        <input type="file" id="fileInput" hidden accept="image/*">
     </div>
-
     <div id="grid"></div>
+</div>
 
-    <script>
-        const upload = document.getElementById('upload');
-        const dropZone = document.getElementById('drop-zone');
-        const grid = document.getElementById('grid');
-        let baseFileName = "skybox";
+<script>
+    const fileInput = document.getElementById('fileInput');
+    const dropZone = document.getElementById('dropZone');
+    const grid = document.getElementById('grid');
+    let baseFileName = "Skybox";
 
-        const faces = [
-            { suffix: 'bk', dir: [-1, 0, 0], right: [0, 0, 1], up: [0, 1, 0] },
-            { suffix: 'dn', dir: [0, -1, 0], right: [1, 0, 0], up: [0, 0, 1] },
-            { suffix: 'ft', dir: [1, 0, 0], right: [0, 0, -1], up: [0, 1, 0] },
-            { suffix: 'lf', dir: [0, 0, -1], right: [-1, 0, 0], up: [0, 1, 0] },
-            { suffix: 'rt', dir: [0, 0, 1], right: [1, 0, 0], up: [0, 1, 0] },
-            { suffix: 'up', dir: [0, 1, 0], right: [1, 0, 0], up: [0, 0, -1] }
-        ];
+    // Optimized vectors: 180deg flip + 90deg rotations for Up/Dn + Ft naming
+    const faces = [
+        { name: 'front',  suffix: 'Ft', dir: [0, 0, 1],  up: [0, -1, 0],  right: [-1, 0, 0] },
+        { name: 'back',   suffix: 'Bk', dir: [0, 0, -1], up: [0, -1, 0],  right: [1, 0, 0]  },
+        // Up (Top): Rotated 90deg CCW
+        { name: 'up',     suffix: 'Up', dir: [0, 1, 0],  up: [1, 0, 0],   right: [0, 0, 1]  },
+        // Down (Bottom): Rotated 90deg CW
+        { name: 'down',   suffix: 'Dn', dir: [0, -1, 0], up: [-1, 0, 0],  right: [0, 0, 1]  },
+        { name: 'right',  suffix: 'Rt', dir: [1, 0, 0],  up: [0, -1, 0],  right: [0, 0, 1]  },
+        { name: 'left',   suffix: 'Lf', dir: [-1, 0, 0], up: [0, -1, 0],  right: [0, 0, -1] }
+    ];
 
-        // Original Drag and Drop Event Listeners
-        dropZone.onclick = () => upload.click();
-        dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('hover'); };
-        dropZone.ondragleave = () => dropZone.classList.remove('hover');
-        dropZone.ondrop = (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('hover');
-            handleFile(e.dataTransfer.files[0]);
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, e => {
+            e.preventDefault(); e.stopPropagation();
+        }, false);
+    });
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
+    });
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
+    });
+
+    dropZone.addEventListener('drop', e => {
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            fileInput.files = files;
+            handleFile({ target: { files } });
+        }
+    }, false);
+
+    dropZone.onclick = () => fileInput.click();
+    fileInput.onchange = handleFile;
+
+    function handleFile(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        baseFileName = file.name.replace(/\.[^/.]+$/, "");
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => process(img);
+            img.src = event.target.result;
         };
+        reader.readAsDataURL(file);
+    }
 
-        upload.addEventListener('change', (e) => handleFile(e.target.files[0]));
+    function process(img) {
+        grid.innerHTML = '';
+        const size = Math.min(img.width / 4, 2048);
+        const srcCanvas = document.createElement('canvas');
+        srcCanvas.width = img.width; srcCanvas.height = img.height;
+        const srcCtx = srcCanvas.getContext('2d');
+        srcCtx.drawImage(img, 0, 0);
+        const srcData = srcCtx.getImageData(0, 0, img.width, img.height).data;
 
-        function handleFile(file) {
-            if (!file) return;
-            baseFileName = file.name.replace(/\.[^/.]+$/, "");
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const img = new Image();
-                img.onload = () => process(img);
-                img.src = event.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
+        faces.forEach(face => {
+            const canvas = document.createElement('canvas');
+            canvas.width = canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            const dstData = ctx.createImageData(size, size);
 
-        function sampleBilinear(data, u, v, width, height, outData, outIndex) {
-            const x = Math.max(0, Math.min(width - 1, u));
-            const y = Math.max(0, Math.min(height - 1, v));
-            const x1 = Math.floor(x), x2 = Math.min(x1 + 1, width - 1);
-            const y1 = Math.floor(y), y2 = Math.min(y1 + 1, height - 1);
-            const dx = x - x1, dy = y - y1;
-
-            for (let i = 0; i < 4; i++) {
-                const p1 = data[(y1 * width + x1) * 4 + i];
-                const p2 = data[(y1 * width + x2) * 4 + i];
-                const p3 = data[(y2 * width + x1) * 4 + i];
-                const p4 = data[(y2 * width + x2) * 4 + i];
-                outData[outIndex + i] = (1 - dx) * (1 - dy) * p1 + dx * (1 - dy) * p2 + (1 - dx) * dy * p3 + dx * dy * p4;
-            }
-        }
-
-        function process(img) {
-            grid.innerHTML = '';
-
-            const size = Math.min(img.width / 4, 2048);
-            const srcCanvas = document.createElement('canvas');
-            srcCanvas.width = img.width;
-            srcCanvas.height = img.height;
-            const srcCtx = srcCanvas.getContext('2d');
-            srcCtx.drawImage(img, 0, 0);
-            const srcData = srcCtx.getImageData(0, 0, img.width, img.height).data;
-
-            faces.forEach(face => {
-                const canvas = document.createElement('canvas');
-                canvas.width = canvas.height = size;
-                const ctx = canvas.getContext('2d');
-                const dstData = ctx.createImageData(size, size);
-
-                for (let y = 0; y < size; y++) {
-                    for (let x = 0; x < size; x++) {
-                        // Normalized coordinates
-                        let nx = (2 * x / size) - 1;
-                        let ny = (2 * y / size) - 1;
-
-                        // Apply Specific Rotations via Coordinate Mapping
-                        if (['bk', 'ft', 'rt', 'lf'].includes(face.suffix)) {
-                            // Rotate 180: (x,y) -> (-x,-y)
-                            nx = -nx;
-                            ny = -ny;
-                        } else if (face.suffix === 'up') {
-                            // Result 90 CW: Sample CCW -> (x,y) -> (-y,x)
-                            let temp = nx;
-                            nx = -ny;
-                            ny = temp;
-                        } else if (face.suffix === 'dn') {
-                            // Result 90 CCW: Sample CW -> (x,y) -> (y,-x)
-                            let temp = nx;
-                            nx = ny;
-                            ny = -temp;
-                        }
-
-                        const vx = face.dir[0] + nx * face.right[0] + ny * face.up[0];
-                        const vy = face.dir[1] + nx * face.right[1] + ny * face.up[1];
-                        const vz = face.dir[2] + nx * face.right[2] + ny * face.up[2];
-
-                        const r = Math.sqrt(vx * vx + vy * vy + vz * vz);
-                        const phi = Math.atan2(vz, vx);
-                        const theta = Math.acos(vy / r);
-
-                        const u = (phi + Math.PI) / (2 * Math.PI) * img.width;
-                        const v = (theta / Math.PI) * img.height;
-
-                        const outIndex = (y * size + x) * 4;
-                        sampleBilinear(srcData, u, v, img.width, img.height, dstData.data, outIndex);
-                    }
+            for (let y = 0; y < size; y++) {
+                for (let x = 0; x < size; x++) {
+                    const nx = (2 * x / size) - 1;
+                    const ny = (2 * y / size) - 1;
+                    const vx = face.dir[0] + nx * face.right[0] + ny * face.up[0];
+                    const vy = face.dir[1] + nx * face.right[1] + ny * face.up[1];
+                    const vz = face.dir[2] + nx * face.right[2] + ny * face.up[2];
+                    const r = Math.sqrt(vx*vx + vy*vy + vz*vz);
+                    const phi = Math.atan2(vz, vx);
+                    const theta = Math.acos(vy / r);
+                    const u = (phi + Math.PI) / (2 * Math.PI) * img.width;
+                    const v = (theta / Math.PI) * img.height;
+                    const outIndex = (y * size + x) * 4;
+                    sampleBilinear(srcData, u, v, img.width, img.height, dstData.data, outIndex);
                 }
-                ctx.putImageData(dstData, 0, 0);
-
-                // Build UI exactly like original to maintain stability
-                const div = document.createElement('div');
-                div.className = 'face-box';
-                div.appendChild(canvas);
-                
-                const name = `${baseFileName}_${face.suffix}`;
-                const label = document.createElement('strong');
-                label.textContent = name;
-                div.appendChild(label);
-
-                const dl = document.createElement('a');
-                dl.className = 'btn';
-                dl.innerText = 'Download JPG';
-                dl.download = `${name}.jpg`;
-                dl.href = canvas.toDataURL('image/jpeg', 0.9);
-                div.appendChild(dl);
-
-                grid.appendChild(div);
-            });
-
-            // Final Step: The 400x200 Thumbnail
-            const tnCanvas = document.createElement('canvas');
-            tnCanvas.width = 400;
-            tnCanvas.height = 200;
-            tnCanvas.getContext('2d').drawImage(img, 0, 0, 400, 200);
-
-            const tnDiv = document.createElement('div');
-            tnDiv.className = 'face-box';
-            tnDiv.appendChild(tnCanvas);
+            }
+            ctx.putImageData(dstData, 0, 0);
             
-            const tnName = `${baseFileName}_tn`;
-            const tnLabel = document.createElement('strong');
-            tnLabel.textContent = tnName;
-            tnDiv.appendChild(tnLabel);
+            const robloxName = `${baseFileName}_${face.suffix}`;
+            const div = document.createElement('div');
+            div.className = 'face-box';
+            
+            const displayCanvas = document.createElement('canvas');
+            displayCanvas.width = size; displayCanvas.height = size;
+            displayCanvas.getContext('2d').drawImage(canvas, 0, 0);
+            
+            div.appendChild(displayCanvas);
+            div.innerHTML += `<strong>${robloxName}</strong>`;
 
-            const tnDl = document.createElement('a');
-            tnDl.className = 'btn';
-            tnDl.innerText = 'Download JPG';
-            tnDl.download = `${tnName}.jpg`;
-            tnDl.href = tnCanvas.toDataURL('image/jpeg', 0.9);
-            tnDiv.appendChild(tnDl);
+            const dl = document.createElement('a');
+            dl.className = 'btn';
+            dl.innerText = 'Download JPG';
+            dl.download = `${robloxName}.jpg`;
+            dl.href = canvas.toDataURL('image/jpeg', 0.9);
+            
+            div.appendChild(dl);
+            grid.appendChild(div);
+        });
+    }
 
-            grid.appendChild(tnDiv);
+    function sampleBilinear(data, u, v, w, h, out, outIndex) {
+        const u1 = Math.floor(u); const v1 = Math.floor(v);
+        const u2 = (u1 + 1) % w;  const v2 = Math.min(v1 + 1, h - 1);
+        const fU = u - u1;        const fV = v - v1;
+        for (let i = 0; i < 4; i++) {
+            const p1 = data[(v1 * w + u1) * 4 + i];
+            const p2 = data[(v1 * w + u2) * 4 + i];
+            const p3 = data[(v2 * w + u1) * 4 + i];
+            const p4 = data[(v2 * w + u2) * 4 + i];
+            out[outIndex + i] = p1 * (1-fU) * (1-fV) + p2 * fU * (1-fV) + p3 * (1-fU) * fV + p4 * fU * fV;
         }
-    </script>
+    }
+</script>
 </body>
 </html>
